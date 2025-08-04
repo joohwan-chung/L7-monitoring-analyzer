@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>L7 로그 분석 대시보드</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>L7 로그 분석 대시보드</h1>
+      <p>성공/실패 로그를 통합 분석하여 상세한 통계를 제공합니다</p>
+    </div>
+
+    <div class="controls">
+      <div class="file-input-container">
+        <label for="logFile" class="file-input-label">
+          <span class="file-input-text">로그 파일 선택</span>
+          <input type="file" id="logFile" accept=".log,.txt" style="display: none;">
+        </label>
+        <div class="selected-file" id="selectedFileName">파일을 선택해주세요</div>
+      </div>
+      <button class="analyze-btn" onclick="analyzeLogs()" id="analyzeBtn" disabled>로그 분석 시작</button>
+    </div>
+
+    <div id="filterContainer" style="display: none;">
+      <div class="filter-tabs">
+        <button class="tab-btn active" onclick="showFilterTab('basic')">기본 필터</button>
+        <button class="tab-btn" onclick="showFilterTab('advanced')">고급 필터</button>
+        <button class="tab-btn" onclick="showFilterTab('charts')">차트 설정</button>
+      </div>
+
+      <div id="basicFilterTab" class="filter-tab-content active">
+        <div class="filter-section">
+          <div class="filter-controls">
+            <div class="filter-group">
+              <label for="logTypeFilter">로그 타입:</label>
+              <select id="logTypeFilter" onchange="applyLogTypeFilter()">
+                <option value="all">전체</option>
+                <option value="success">성공만</option>
+                <option value="fail">실패만</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label for="startDate">시작 날짜:</label>
+              <input type="date" id="startDate" onchange="applyDateFilter()">
+            </div>
+            <div class="filter-group">
+              <label for="endDate">종료 날짜:</label>
+              <input type="date" id="endDate" onchange="applyDateFilter()">
+            </div>
+            <div class="filter-group">
+              <label for="startHour">시작 시간:</label>
+              <select id="startHour">
+                <option value="">전체</option>
+              </select>
+              <span>시</span>
+            </div>
+            <div class="filter-group">
+              <label for="endHour">종료 시간:</label>
+              <select id="endHour">
+                <option value="">전체</option>
+              </select>
+              <span>시</span>
+            </div>
+            <div class="filter-actions">
+              <button class="filter-btn" onclick="applyTimeFilter()">필터 적용</button>
+              <button class="filter-btn secondary" onclick="clearTimeFilter()">초기화</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="advancedFilterTab" class="filter-tab-content">
+        <div class="filter-section">
+          <div class="filter-controls">
+            <div class="filter-group">
+              <label for="sessionFilter">세션 ID:</label>
+              <select id="sessionFilter">
+                <option value="">전체</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label for="computerFilter">컴퓨터 ID:</label>
+              <select id="computerFilter">
+                <option value="">전체</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label for="requestGroupFilter">요청 그룹 ID:</label>
+              <select id="requestGroupFilter">
+                <option value="">전체</option>
+              </select>
+            </div>
+            <div class="filter-actions">
+              <button class="filter-btn" onclick="applyAdvancedFilter()">필터 적용</button>
+              <button class="filter-btn secondary" onclick="clearAdvancedFilter()">초기화</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="chartsFilterTab" class="filter-tab-content">
+        <div class="filter-section">
+          <div class="filter-controls">
+            <div class="filter-group">
+              <label for="timeChartType">시간별 차트:</label>
+              <select id="timeChartType" onchange="updateChartType('time')">
+                <option value="line">선 그래프</option>
+                <option value="bar">막대 그래프</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label for="minuteChartType">분별 차트:</label>
+              <select id="minuteChartType" onchange="updateChartType('minute')">
+                <option value="line">선 그래프</option>
+                <option value="bar">막대 그래프</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label for="durationChartType">응답시간 차트:</label>
+              <select id="durationChartType" onchange="updateChartType('duration')">
+                <option value="line">선 그래프</option>
+                <option value="bar">막대 그래프</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label for="sessionChartType">세션별 차트:</label>
+              <select id="sessionChartType" onchange="updateChartType('session')">
+                <option value="bar">막대 그래프</option>
+                <option value="line">선 그래프</option>
+                <option value="pie">파이 차트</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label for="computerChartType">컴퓨터별 차트:</label>
+              <select id="computerChartType" onchange="updateChartType('computer')">
+                <option value="bar">막대 그래프</option>
+                <option value="line">선 그래프</option>
+                <option value="pie">파이 차트</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label for="requestGroupChartType">요청 그룹별 차트:</label>
+              <select id="requestGroupChartType" onchange="updateChartType('requestGroup')">
+                <option value="bar">막대 그래프</option>
+                <option value="line">선 그래프</option>
+                <option value="pie">파이 차트</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="errorContainer"></div>
+
+    <div id="statsContainer" style="display: none;">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <h3>총 로그 수</h3>
+          <div class="stat-value" id="totalLogs">0</div>
+          <div class="stat-label">전체 요청 수</div>
+        </div>
+        <div class="stat-card">
+          <h3>성공 로그</h3>
+          <div class="stat-value success" id="successLogs">0</div>
+          <div class="stat-label">성공 요청 수</div>
+        </div>
+        <div class="stat-card">
+          <h3>실패 로그</h3>
+          <div class="stat-value fail" id="failLogs">0</div>
+          <div class="stat-label">실패 요청 수</div>
+        </div>
+        <div class="stat-card">
+          <h3>성공률</h3>
+          <div class="stat-value" id="successRate">0%</div>
+          <div class="stat-label">전체 대비 성공 비율</div>
+        </div>
+        <div class="stat-card">
+          <h3>고유 에러 타입</h3>
+          <div class="stat-value" id="uniqueErrorTypes">0</div>
+          <div class="stat-label">발생한 에러 타입 수</div>
+        </div>
+        <div class="stat-card">
+          <h3>고유 클라이언트 IP</h3>
+          <div class="stat-value" id="uniqueIPs">0</div>
+          <div class="stat-label">고유 IP 수</div>
+        </div>
+        <div class="stat-card">
+          <h3>평균 응답시간</h3>
+          <div class="stat-value" id="avgResponseTime">0ms</div>
+          <div class="stat-label">전체 평균 응답시간</div>
+        </div>
+        <div class="stat-card">
+          <h3>최대 응답시간</h3>
+          <div class="stat-value" id="maxResponseTime">0ms</div>
+          <div class="stat-label">가장 긴 응답시간</div>
+        </div>
+        <div class="stat-card">
+          <h3>최소 응답시간</h3>
+          <div class="stat-value" id="minResponseTime">0ms</div>
+          <div class="stat-label">가장 짧은 응답시간</div>
+        </div>
+        <div class="stat-card">
+          <h3>평균 소켓 수</h3>
+          <div class="stat-value" id="avgSockets">0</div>
+          <div class="stat-label">평균 선택된 소켓 수</div>
+        </div>
+        <div class="stat-card">
+          <h3>가장 빈번한 에러</h3>
+          <div class="stat-value" id="mostFrequentError">-</div>
+          <div class="stat-label">가장 많이 발생한 에러 타입</div>
+        </div>
+        <div class="stat-card">
+          <h3>최고 발생 시간대</h3>
+          <div class="stat-value" id="peakHour">-</div>
+          <div class="stat-label">가장 많은 요청이 발생한 시간</div>
+        </div>
+        <div class="stat-card">
+          <h3>최고 발생 분</h3>
+          <div class="stat-value" id="peakMinute">-</div>
+          <div class="stat-label">가장 많은 요청이 발생한 분</div>
+        </div>
+        <div class="stat-card">
+          <h3>고유 세션 수</h3>
+          <div class="stat-value" id="uniqueSessions">0</div>
+          <div class="stat-label">고유 세션 ID 수</div>
+        </div>
+        <div class="stat-card">
+          <h3>고유 컴퓨터 수</h3>
+          <div class="stat-value" id="uniqueComputers">0</div>
+          <div class="stat-label">고유 컴퓨터 ID 수</div>
+        </div>
+        <div class="stat-card">
+          <h3>고유 요청 그룹 수</h3>
+          <div class="stat-value" id="uniqueRequestGroups">0</div>
+          <div class="stat-label">고유 요청 그룹 ID 수</div>
+        </div>
+        <div class="stat-card">
+          <h3>평균 세션당 요청</h3>
+          <div class="stat-value" id="avgRequestsPerSession">0</div>
+          <div class="stat-label">세션당 평균 요청 수</div>
+        </div>
+        <div class="stat-card">
+          <h3>가장 활발한 세션</h3>
+          <div class="stat-value" id="mostActiveSession">-</div>
+          <div class="stat-label">가장 많은 요청을 보낸 세션</div>
+        </div>
+      </div>
+
+      <div class="charts-container">
+        <div class="chart-card">
+          <h3>날짜별 시간대 요청 분포</h3>
+          <div class="chart-container">
+            <canvas id="timeChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3>날짜별 분별 요청 분포 (상위 20개)</h3>
+          <div class="chart-container">
+            <canvas id="minuteChart"></canvas>
+          </div>
+          <div class="chart-actions">
+            <button class="view-all-btn" onclick="showFullMinuteDistribution()">전체 분별 분포 보기</button>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3>응답시간 분포</h3>
+          <div class="chart-container">
+            <canvas id="durationChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3>시간대별 평균 응답시간</h3>
+          <div class="chart-container">
+            <canvas id="avgResponseTimeChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3>세션별 요청 분포 (상위 10개)</h3>
+          <div class="chart-container">
+            <canvas id="sessionChart"></canvas>
+          </div>
+          <div class="chart-actions">
+            <button class="view-all-btn" onclick="showFullSessionDistribution()">전체 세션 분포 보기</button>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3>컴퓨터별 요청 분포 (상위 10개)</h3>
+          <div class="chart-container">
+            <canvas id="computerChart"></canvas>
+          </div>
+          <div class="chart-actions">
+            <button class="view-all-btn" onclick="showFullComputerDistribution()">전체 컴퓨터 분포 보기</button>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3>요청 그룹별 요청 분포 (상위 10개)</h3>
+          <div class="chart-container">
+            <canvas id="requestGroupChart"></canvas>
+          </div>
+          <div class="chart-actions">
+            <button class="view-all-btn" onclick="showFullRequestGroupDistribution()">전체 요청 그룹 분포 보기</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="detailed-stats">
+        <h2>상세 통계 정보</h2>
+        <table class="stats-table">
+          <thead>
+            <tr>
+              <th>분류</th>
+              <th>수량</th>
+              <th>비율</th>
+              <th>평균 응답시간</th>
+            </tr>
+          </thead>
+          <tbody id="detailedStatsBody">
+          </tbody>
+        </table>
+      </div>
+
+      <div class="error-details">
+        <h2>에러 상세 정보</h2>
+        <div id="errorDetailsContainer">
+        </div>
+      </div>
+    </div>
+
+    <div id="loadingContainer" style="display: none;">
+      <div class="loading">로그 파일을 분석하고 있습니다...</div>
+    </div>
+  </div>
+
+  <!-- 전체 분별 분포 모달 -->
+  <div id="fullMinuteModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>전체 날짜별 분별 요청 분포</h2>
+        <span class="close" onclick="closeFullMinuteModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="modal-controls">
+          <div class="control-group">
+            <label for="minuteFilterType">표시 타입:</label>
+            <select id="minuteFilterType" onchange="updateFullMinuteChart()">
+              <option value="all">전체</option>
+              <option value="success">성공만</option>
+              <option value="fail">실패만</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="modalStartDate">시작 날짜:</label>
+            <input type="date" id="modalStartDate" onchange="updateFullMinuteChart()">
+          </div>
+          <div class="control-group">
+            <label for="modalEndDate">종료 날짜:</label>
+            <input type="date" id="modalEndDate" onchange="updateFullMinuteChart()">
+          </div>
+          <div class="control-group">
+            <label for="minuteSortType">정렬 방식:</label>
+            <select id="minuteSortType" onchange="updateFullMinuteChart()">
+              <option value="count">요청 수</option>
+              <option value="time">시간순</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="modalMinuteChartType">차트 타입:</label>
+            <select id="modalMinuteChartType" onchange="updateFullMinuteChart()">
+              <option value="bar">막대 그래프</option>
+              <option value="line">선 그래프</option>
+            </select>
+          </div>
+          <div class="control-group zoom-controls">
+            <button class="zoom-btn" onclick="resetZoom()" title="줌 리셋">
+              <span>🔍</span> 리셋
+            </button>
+            <button class="zoom-btn" onclick="toggleZoomMode()" title="줌 모드 전환">
+              <span id="zoomModeIcon">📏</span> <span id="zoomModeText">드래그</span>
+            </button>
+            <div class="zoom-info">
+              <span id="zoomStatus">줌: 전체</span>
+            </div>
+          </div>
+        </div>
+        <div class="full-minute-chart-container">
+          <canvas id="fullMinuteChart"></canvas>
+        </div>
+        <div class="minute-stats">
+          <div class="stats-summary">
+            <div class="stat-item">
+              <span class="stat-label">총 분 수:</span>
+              <span class="stat-value" id="totalMinutes">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">평균 요청 수:</span>
+              <span class="stat-value" id="avgRequestsPerMinute">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">최대 요청 수:</span>
+              <span class="stat-value" id="maxRequestsPerMinute">0</span>
+            </div>
+          </div>
+          <div class="stats-summary">
+            <div class="stat-item">
+              <span class="stat-label">총 요청 수:</span>
+              <span class="stat-value" id="totalRequests">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">성공 요청:</span>
+              <span class="stat-value success" id="totalSuccess">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">실패 요청:</span>
+              <span class="stat-value fail" id="totalFail">0</span>
+            </div>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">성공률:</span>
+            <span class="stat-value success" id="successRate">0%</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">실패률:</span>
+            <span class="stat-value fail" id="failRate">0%</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">최소 요청 수:</span>
+            <span class="stat-value" id="minRequestsPerMinute">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">중간값 요청 수:</span>
+            <span class="stat-value" id="medianRequestsPerMinute">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 전체 세션 분포 모달 -->
+  <div id="fullSessionModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>전체 세션별 요청 분포</h2>
+        <span class="close" onclick="closeFullSessionModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="modal-controls">
+          <div class="control-group">
+            <label for="sessionFilterType">표시 타입:</label>
+            <select id="sessionFilterType" onchange="updateFullSessionChart()">
+              <option value="all">전체</option>
+              <option value="success">성공만</option>
+              <option value="fail">실패만</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="sessionModalStartDate">시작 날짜:</label>
+            <input type="date" id="sessionModalStartDate" onchange="updateFullSessionChart()">
+          </div>
+          <div class="control-group">
+            <label for="sessionModalEndDate">종료 날짜:</label>
+            <input type="date" id="sessionModalEndDate" onchange="updateFullSessionChart()">
+          </div>
+          <div class="control-group">
+            <label for="sessionSortType">정렬 방식:</label>
+            <select id="sessionSortType" onchange="updateFullSessionChart()">
+              <option value="count">요청 수</option>
+              <option value="name">이름순</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="modalSessionChartType">차트 타입:</label>
+            <select id="modalSessionChartType" onchange="updateFullSessionChart()">
+              <option value="bar">막대 그래프</option>
+              <option value="line">선 그래프</option>
+              <option value="pie">파이 차트</option>
+            </select>
+          </div>
+        </div>
+        <div class="full-session-chart-container">
+          <canvas id="fullSessionChart"></canvas>
+        </div>
+        <div class="session-stats">
+          <div class="stats-summary">
+            <div class="stat-item">
+              <span class="stat-label">총 세션 수:</span>
+              <span class="stat-value" id="totalSessions">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">평균 요청 수:</span>
+              <span class="stat-value" id="avgRequestsPerSessionModal">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">최대 요청 수:</span>
+              <span class="stat-value" id="maxRequestsPerSession">0</span>
+            </div>
+          </div>
+          <div class="stats-summary">
+            <div class="stat-item">
+              <span class="stat-label">총 요청 수:</span>
+              <span class="stat-value" id="totalSessionRequests">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">성공 요청:</span>
+              <span class="stat-value success" id="totalSessionSuccess">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">실패 요청:</span>
+              <span class="stat-value fail" id="totalSessionFail">0</span>
+            </div>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">성공률:</span>
+            <span class="stat-value success" id="sessionSuccessRate">0%</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">실패률:</span>
+            <span class="stat-value fail" id="sessionFailRate">0%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 전체 컴퓨터 분포 모달 -->
+  <div id="fullComputerModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>전체 컴퓨터별 요청 분포</h2>
+        <span class="close" onclick="closeFullComputerModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="modal-controls">
+          <div class="control-group">
+            <label for="computerFilterType">표시 타입:</label>
+            <select id="computerFilterType" onchange="updateFullComputerChart()">
+              <option value="all">전체</option>
+              <option value="success">성공만</option>
+              <option value="fail">실패만</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="computerModalStartDate">시작 날짜:</label>
+            <input type="date" id="computerModalStartDate" onchange="updateFullComputerChart()">
+          </div>
+          <div class="control-group">
+            <label for="computerModalEndDate">종료 날짜:</label>
+            <input type="date" id="computerModalEndDate" onchange="updateFullComputerChart()">
+          </div>
+          <div class="control-group">
+            <label for="computerSortType">정렬 방식:</label>
+            <select id="computerSortType" onchange="updateFullComputerChart()">
+              <option value="count">요청 수</option>
+              <option value="name">이름순</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="modalComputerChartType">차트 타입:</label>
+            <select id="modalComputerChartType" onchange="updateFullComputerChart()">
+              <option value="bar">막대 그래프</option>
+              <option value="line">선 그래프</option>
+              <option value="pie">파이 차트</option>
+            </select>
+          </div>
+        </div>
+        <div class="full-computer-chart-container">
+          <canvas id="fullComputerChart"></canvas>
+        </div>
+        <div class="computer-stats">
+          <div class="stats-summary">
+            <div class="stat-item">
+              <span class="stat-label">총 컴퓨터 수:</span>
+              <span class="stat-value" id="totalComputers">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">평균 요청 수:</span>
+              <span class="stat-value" id="avgRequestsPerComputer">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">최대 요청 수:</span>
+              <span class="stat-value" id="maxRequestsPerComputer">0</span>
+            </div>
+          </div>
+          <div class="stats-summary">
+            <div class="stat-item">
+              <span class="stat-label">총 요청 수:</span>
+              <span class="stat-value" id="totalComputerRequests">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">성공 요청:</span>
+              <span class="stat-value success" id="totalComputerSuccess">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">실패 요청:</span>
+              <span class="stat-value fail" id="totalComputerFail">0</span>
+            </div>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">성공률:</span>
+            <span class="stat-value success" id="computerSuccessRate">0%</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">실패률:</span>
+            <span class="stat-value fail" id="computerFailRate">0%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 전체 요청 그룹 분포 모달 -->
+  <div id="fullRequestGroupModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>전체 요청 그룹별 요청 분포</h2>
+        <span class="close" onclick="closeFullRequestGroupModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="modal-controls">
+          <div class="control-group">
+            <label for="requestGroupFilterType">표시 타입:</label>
+            <select id="requestGroupFilterType" onchange="updateFullRequestGroupChart()">
+              <option value="all">전체</option>
+              <option value="success">성공만</option>
+              <option value="fail">실패만</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="requestGroupModalStartDate">시작 날짜:</label>
+            <input type="date" id="requestGroupModalStartDate" onchange="updateFullRequestGroupChart()">
+          </div>
+          <div class="control-group">
+            <label for="requestGroupModalEndDate">종료 날짜:</label>
+            <input type="date" id="requestGroupModalEndDate" onchange="updateFullRequestGroupChart()">
+          </div>
+          <div class="control-group">
+            <label for="requestGroupSortType">정렬 방식:</label>
+            <select id="requestGroupSortType" onchange="updateFullRequestGroupChart()">
+              <option value="count">요청 수</option>
+              <option value="name">이름순</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="modalRequestGroupChartType">차트 타입:</label>
+            <select id="modalRequestGroupChartType" onchange="updateFullRequestGroupChart()">
+              <option value="bar">막대 그래프</option>
+              <option value="line">선 그래프</option>
+              <option value="pie">파이 차트</option>
+            </select>
+          </div>
+        </div>
+        <div class="full-request-group-chart-container">
+          <canvas id="fullRequestGroupChart"></canvas>
+        </div>
+        <div class="request-group-stats">
+          <div class="stats-summary">
+            <div class="stat-item">
+              <span class="stat-label">총 요청 그룹 수:</span>
+              <span class="stat-value" id="totalRequestGroups">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">평균 요청 수:</span>
+              <span class="stat-value" id="avgRequestsPerRequestGroup">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">최대 요청 수:</span>
+              <span class="stat-value" id="maxRequestsPerRequestGroup">0</span>
+            </div>
+          </div>
+          <div class="stats-summary">
+            <div class="stat-item">
+              <span class="stat-label">총 요청 수:</span>
+              <span class="stat-value" id="totalRequestGroupRequests">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">성공 요청:</span>
+              <span class="stat-value success" id="totalRequestGroupSuccess">0</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">실패 요청:</span>
+              <span class="stat-value fail" id="totalRequestGroupFail">0</span>
+            </div>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">성공률:</span>
+            <span class="stat-value success" id="requestGroupSuccessRate">0%</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">실패률:</span>
+            <span class="stat-value fail" id="requestGroupFailRate">0%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+  <script src="script.js"></script>
+</body>
+
+</html>
